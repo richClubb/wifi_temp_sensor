@@ -2768,7 +2768,7 @@
   (symbol (lib_id "Sensor_Humidity:SHT4x") (at 195.58 140.97 0) (unit 1)
     (in_bom yes) (on_board yes) (dnp no)
     (uuid 097a7406-a3d2-4253-8378-938551748314)
-    (property "Reference" "U1" (at 190.5 147.32 0)
+    (property "Reference" "U2" (at 190.5 147.32 0)
       (effects (font (size 1.27 1.27)) (justify left))
     )
     (property "Value" "SHT4x" (at 190.5 149.86 0)
@@ -2787,7 +2787,7 @@
     (instances
       (project "wifi_temp_sensor"
         (path "/f6c77997-b71a-421e-9dbe-7ca9e2d5ccfe"
-          (reference "U1") (unit 1)
+          (reference "U2") (unit 1)
         )
       )
     )
