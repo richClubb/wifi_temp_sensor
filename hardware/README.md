@@ -7,3 +7,7 @@ WiFI Temp Sensor Hardware
 
 * Espressif
 * 
+
+# To-Do
+
+* BOM
