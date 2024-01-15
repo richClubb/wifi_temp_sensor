@@ -3137,6 +3137,9 @@
     (stroke (width 0.1) (type default)) (fill none) (layer "Edge.Cuts") (tstamp e1c4e7b4-1ad3-448d-bc5a-db154cf9229a))
   (gr_line (start 179.87 106.045) (end 179.87 29.045)
     (stroke (width 0.1) (type default)) (layer "Edge.Cuts") (tstamp f9395f97-dc36-425d-aa3c-5680de188200))
+  (gr_text "WiFi Temp Sensor - V1.0\nRich Clubb \nhttps://github.com/richClubb/wifi_temp_sensor" (at 185.42 30.48 180) (layer "B.SilkS") (tstamp 474fdb1c-0fb5-448b-8e15-4df7898b5691)
+    (effects (font (size 1 1) (thickness 0.15)) (justify left bottom mirror))
+  )
 
   (segment (start 190.955 48.895) (end 190.41 48.35) (width 0.75) (layer "F.Cu") (net 1) (tstamp 0950fff4-50b7-4aee-9877-86c9bc1149e9))
   (segment (start 188.531 93.155) (end 187.325 93.155) (width 0.5) (layer "F.Cu") (net 1) (tstamp 0d892fe2-e1e1-46c3-9ff2-1df5b26613ea))
