@@ -1100,7 +1100,7 @@
     (property "ki_description" "0.8A Single Input Single-Cell Li-Ion and Li-Pol Battery Charger")
     (path "/6ed4280b-eeab-4248-99d0-7837e651cfce")
     (attr smd)
-    (fp_text reference "IC2" (at 0 0) (layer "F.SilkS")
+    (fp_text reference "IC2" (at -1.085 -2.805) (layer "F.SilkS")
         (effects (font (size 1.27 1.27) (thickness 0.254)))
       (tstamp 9861b3a7-1b2d-4a39-9cbe-b044c2888cb3)
     )
