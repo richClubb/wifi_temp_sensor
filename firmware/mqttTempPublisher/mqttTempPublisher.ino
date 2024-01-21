@@ -24,6 +24,16 @@
 #include <Wire.h>
 #include <Adafruit_AHTX0.h>
 
+#include <Adafruit_GFX.h>
+#include <Adafruit_SSD1306.h>
+
+#define SCREEN_WIDTH 128 // OLED display width, in pixels
+#define SCREEN_HEIGHT 64 // OLED display height, in pixels
+
+#define OLED_RESET     -1 // Reset pin # (or -1 if sharing Arduino reset pin)
+#define SCREEN_ADDRESS 0x3C///< See datasheet for Address; 0x3D for 128x64, 0x3C for 128x32
+
+Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 Adafruit_AHTX0 aht;
 
 #include "arduino_secrets.h"
@@ -42,20 +52,37 @@ MqttClient mqttClient(wifiClient);
 
 const char broker[] = "test.mosquitto.org";
 int        port     = 1883;
-const char topic[]  = "arduino/study";
+const char tempTopic[]  = "rc/study/temperature";
+const char humidityTopic[]  = "rc/study/humidity";
 
 const long interval = 1000;
 unsigned long previousMillis = 0;
 
-int count = 0;
 
 void setup() {
-  Wire.begin(2, 0);
   //Initialize serial and wait for port to open:
   Serial.begin(9600);
-//  while (!Serial) {
-//    ; // wait for serial port to connect. Needed for native USB port only
-//  }
+
+  Wire.begin(2, 0);
+  // SSD1306_SWITCHCAPVCC = generate display voltage from 3.3V internally
+  if(!display.begin(SSD1306_SWITCHCAPVCC, SCREEN_ADDRESS)) {
+    Serial.println(F("SSD1306 allocation failed"));
+    for(;;); // Don't proceed, loop forever
+  }
+
+  // Show initial display buffer contents on the screen --
+  // the library initializes this with an Adafruit splash screen.
+  display.display();
+  delay(500); // Pause for 2 seconds
+
+  display.clearDisplay();
+  display.setTextSize(1);             // Normal 1:1 pixel scale
+  display.setTextColor(SSD1306_WHITE);        // Draw white text
+  display.setCursor(0,0);             // Start at top-left corner
+  display.println(F("Initialising"));
+  display.display();
+
+  // To-do: Reset board if failed to start up in 5 seconds, print notice
 
   // attempt to connect to WiFi network:
   Serial.print("Attempting to connect to WPA SSID: ");
@@ -66,8 +93,20 @@ void setup() {
     delay(5000);
   }
 
+  // Show connection state on screen
   Serial.println("You're connected to the network");
   Serial.println();
+
+  display.clearDisplay();
+  display.setTextSize(1);             // Normal 1:1 pixel scale
+  display.setTextColor(SSD1306_WHITE);        // Draw white text
+  display.setCursor(0,0);             // Start at top-left corner
+  display.print(F("SSID: "));
+  display.println(ssid);
+  display.setCursor(0,10);             // Start at top-left corner
+  display.print(F("IP: "));
+  display.println(WiFi.localIP());
+  display.display();
 
   // You can provide a unique client ID, if not set the library uses Arduino-millis()
   // Each client must have a unique client ID
@@ -93,12 +132,15 @@ void setup() {
     while (1) delay(10);
   }
   Serial.println("AHT10 or AHT20 found");
+ 
 }
 
 void loop() {
   // call poll() regularly to allow the library to send MQTT keep alives which
   // avoids being disconnected by the broker
   mqttClient.poll();
+
+  // To-do: check connection to WiFi and reset if disconnected
 
   // to avoid having delays in loop, we'll use the strategy from BlinkWithoutDelay
   // see: File -> Examples -> 02.Digital -> BlinkWithoutDelay for more info
@@ -111,18 +153,44 @@ void loop() {
     aht.getEvent(&humidity, &temp);// populate temp and humidity objects with fresh data
 
     Serial.print("Sending message to topic: ");
-    Serial.println(topic);
-    Serial.print("hello ");
+    Serial.print(tempTopic);
+    Serial.print(": ");
     Serial.println(temp.temperature);
+    Serial.print("Sending message to topic: ");
+    Serial.print(humidityTopic);
+    Serial.print(": ");
+    Serial.println(humidity.relative_humidity);
 
     // send message, the Print interface can be used to set the message contents
-    mqttClient.beginMessage(topic);
+    mqttClient.beginMessage(tempTopic);
     mqttClient.print("Temp: ");
     mqttClient.print(temp.temperature);
+    mqttClient.endMessage();
+    
+    mqttClient.beginMessage(humidityTopic);
+    mqttClient.print("Humidity: ");
+    mqttClient.print(humidity.relative_humidity);
     mqttClient.endMessage();
 
     Serial.println();
 
-    count++;
+    display.clearDisplay();
+    display.setTextSize(1);             // Normal 1:1 pixel scale
+    display.setTextColor(SSD1306_WHITE);        // Draw white text
+    display.setCursor(0,0);             // Start at top-left corner
+    display.print(F("SSID: "));
+    display.println(ssid);
+    display.setCursor(0,10);             
+    display.print(F("IP: "));
+    display.println(WiFi.localIP());
+    display.setCursor(0,20);             
+    display.print(F("Temperature: "));
+    display.println(temp.temperature);
+    display.setCursor(0,30);             
+    display.print(F("Humidity: "));
+    display.println(humidity.relative_humidity);
+    display.display();
   }
+
+
 }
