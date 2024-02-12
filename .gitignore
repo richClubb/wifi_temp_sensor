@@ -2,3 +2,4 @@
 *.lck
 /#auto*
 _autosave*
+.vscode/*
