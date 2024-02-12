@@ -1,2 +1,2 @@
 #define SECRET_SSID "FILL_ME_IN"
-#define SECRET_PASS ""
+#define SECRET_PASS "FILL_ME_IN"
