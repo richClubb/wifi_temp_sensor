@@ -39,8 +39,9 @@
 #define IP_LINE_POS 10
 #define MQTT_LINE_POS 20
 #define INIT_LINE_POS 0
-#define TEMP_LINE_POS 30
-#define HUMIDITY_LINE_POS 40
+#define ROOM_LINE_POS 30
+#define TEMP_LINE_POS 40
+#define HUMIDITY_LINE_POS 50
 #define RESETTING_LINE_POS 10
 
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
@@ -48,8 +49,8 @@ Adafruit_AHTX0 aht;
 
 #include "arduino_secrets.h"
 ///////please enter your sensitive data in the Secret tab/arduino_secrets.h
-char ssid[] = SECRET_SSID;    // your network SSID (name)
-char pass[] = SECRET_PASS;    // your network password (use for WPA, or use as key for WEP)
+char ssid[100] = SECRET_SSID;    // your network SSID (name)
+char pass[100] = SECRET_PASS;    // your network password (use for WPA, or use as key for WEP)
 
 // To connect with SSL/TLS:
 // 1) Change WiFiClient to WiFiSSLClient.
@@ -60,10 +61,13 @@ char pass[] = SECRET_PASS;    // your network password (use for WPA, or use as k
 WiFiClient wifiClient;
 MqttClient mqttClient(wifiClient);
 
+#define ROOM_NAME "aroom"
+
+const char room[50] = ROOM_NAME;
 const char broker[50] = "test.mosquitto.org";
 int        port     = 1883;
-const char tempTopic[50]  = "aroom2/temperature";
-const char humidityTopic[50]  = "aroom2/humidity";
+const char tempTopic[50]  = ROOM_NAME "/temperature";
+const char humidityTopic[50]  = ROOM_NAME "/humidity";
 
 const long interval = 1000;
 unsigned long previousMillis = 0;
@@ -79,7 +83,6 @@ void(* resetFunc) (void) = 0;
 
 void display_initialising()
 {
-  display.display();
   delay(500); // Pause for 2 seconds
 
   display.clearDisplay();
@@ -87,13 +90,10 @@ void display_initialising()
   display.setTextColor(SSD1306_WHITE);        // Draw white text
   display.setCursor(0,INIT_LINE_POS);             // Start at top-left corner
   display.println(F("Initialising"));
-  display.display(); 
 }
 
 void display_network_details(bool wifi_connected, bool mqtt_connected)
 {
-
-  display.clearDisplay();
   display.setTextSize(1);                     // Normal 1:1 pixel scale
   display.setTextColor(SSD1306_WHITE);        // Draw white text
   display.setCursor(0,SSID_LINE_POS);           
@@ -108,19 +108,25 @@ void display_network_details(bool wifi_connected, bool mqtt_connected)
     if (mqtt_connected)
     {
       display.setCursor(0, MQTT_LINE_POS);        
-      display.print(F("IP: "));
-      display.println(WiFi.localIP());
+      display.println("Broker: Connected");
     }
   }
   else
   {
     display.setCursor(0, IP_LINE_POS);
     display.print(F("Wifi Disconnected"));
-    display.println(WiFi.localIP());
+    display.setCursor(0, MQTT_LINE_POS);        
+    display.println("Broker: Disconnected");
   }
 
   display.display();
-  
+}
+
+void display_room_info()
+{
+  display.setCursor(0, ROOM_LINE_POS);
+  display.print(F("Room: "));
+  display.println(ROOM_NAME);
 }
 
 void display_temp_and_humidity(sensors_event_t temp, sensors_event_t humidity)
@@ -131,19 +137,17 @@ void display_temp_and_humidity(sensors_event_t temp, sensors_event_t humidity)
   display.setCursor(0,HUMIDITY_LINE_POS);             // Start at top-left corner
   display.print(F("Humidity: "));
   display.println(humidity.relative_humidity);
-  display.display();
+  
 }
 
 void display_sensor_error()
 {
-  display.clearDisplay();
   display.setTextSize(1);             // Normal 1:1 pixel scale
   display.setTextColor(SSD1306_WHITE);        // Draw white text
   display.setCursor(0,INIT_LINE_POS);          
   display.print(F("Sensor Fail"));
   display.setCursor(0,RESETTING_LINE_POS);
   display.print(F("Resetting"));
-  display.display();
 }
 
 bool connect_to_wifi()
@@ -205,18 +209,24 @@ void setup() {
     Serial.println(F("SSD1306 allocation failed, could not start screen"));
   }
 
+  display.clearDisplay();
   // Show system initialising
   display_initialising();
+  display.display();
 
   wifi_connected = connect_to_wifi();
 
   if (wifi_connected) mqtt_connected = connect_to_mqtt();
 
+  display.clearDisplay();
   display_network_details(wifi_connected, mqtt_connected);
+  display.display();
 
   if (! aht.begin()) {
     Serial.println("Could not find AHT? Check wiring");
+    display.clearDisplay();
     display_sensor_error();
+    display.display();
     delay(2000);
     resetFunc();
   }
@@ -258,6 +268,7 @@ void loop() {
 
     if (WiFi.isConnected())
     {
+      wifi_connected = true;
       Serial.println("WiFi Connected");
       if (!mqtt_connected) mqtt_connected = connect_to_mqtt();
       Serial.print("Connected to mqtt: ");
@@ -287,16 +298,10 @@ void loop() {
 
     display.clearDisplay();
 
-    display.setTextSize(1);             // Normal 1:1 pixel scale
-    display.setTextColor(SSD1306_WHITE);        // Draw white text
-    display.setCursor(0,0);             // Start at top-left corner
-    display.print(F("SSID: "));
-    display.println(ssid);
-    display.setCursor(0,10);             // Start at top-left corner
-    display.print(F("IP: "));
-    display.println(WiFi.localIP());
-
+    display_network_details(wifi_connected, mqtt_connected);
+    display_room_info();
     display_temp_and_humidity(temp, humidity);
 
+    display.display();
   }
 }
