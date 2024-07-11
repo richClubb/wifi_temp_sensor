@@ -62,93 +62,88 @@ MqttClient mqttClient(wifiClient);
 
 const char broker[50] = "test.mosquitto.org";
 int        port     = 1883;
-const char tempTopic[50]  = "aroom/temperature";
-const char humidityTopic[50]  = "aroom/humidity";
+const char tempTopic[50]  = "aroom2/temperature";
+const char humidityTopic[50]  = "aroom2/humidity";
 
 const long interval = 1000;
 unsigned long previousMillis = 0;
 
-bool screen_present = true;
+const long reconnectInterval = 10000;
+unsigned long disconnectedTimeLast = 0;
+unsigned long previousDisconnectedMillis = 0;
+
 bool wifi_connected = false;
 bool mqtt_connected = false;
-
 
 void(* resetFunc) (void) = 0;
 
 void display_initialising()
 {
-  if (screen_present)
-  {
-    display.display();
-    delay(500); // Pause for 2 seconds
+  display.display();
+  delay(500); // Pause for 2 seconds
 
-    display.clearDisplay();
-    display.setTextSize(1);             // Normal 1:1 pixel scale
-    display.setTextColor(SSD1306_WHITE);        // Draw white text
-    display.setCursor(0,INIT_LINE_POS);             // Start at top-left corner
-    display.println(F("Initialising"));
-    display.display();
-  }
+  display.clearDisplay();
+  display.setTextSize(1);             // Normal 1:1 pixel scale
+  display.setTextColor(SSD1306_WHITE);        // Draw white text
+  display.setCursor(0,INIT_LINE_POS);             // Start at top-left corner
+  display.println(F("Initialising"));
+  display.display(); 
 }
 
 void display_network_details(bool wifi_connected, bool mqtt_connected)
 {
-  if (screen_present)
-  {
-    display.clearDisplay();
-    display.setTextSize(1);                     // Normal 1:1 pixel scale
-    display.setTextColor(SSD1306_WHITE);        // Draw white text
-    display.setCursor(0,SSID_LINE_POS);           
-    display.print(F("SSID: "));
-    display.println(ssid);
-    
-    if (wifi_connected)
-    {  
-      display.setCursor(0, IP_LINE_POS);            
+
+  display.clearDisplay();
+  display.setTextSize(1);                     // Normal 1:1 pixel scale
+  display.setTextColor(SSD1306_WHITE);        // Draw white text
+  display.setCursor(0,SSID_LINE_POS);           
+  display.print(F("SSID: "));
+  display.println(ssid);
+  
+  if (wifi_connected)
+  {  
+    display.setCursor(0, IP_LINE_POS);            
+    display.print(F("IP: "));
+    display.println(WiFi.localIP());
+    if (mqtt_connected)
+    {
+      display.setCursor(0, MQTT_LINE_POS);        
       display.print(F("IP: "));
       display.println(WiFi.localIP());
-      if (mqtt_connected)
-      {
-        display.setCursor(0, MQTT_LINE_POS);        
-        display.print(F("IP: "));
-        display.println(WiFi.localIP());
-      }
     }
-    else
-    {
-      display.setCursor(0, IP_LINE_POS);
-      display.print(F("Wifi Disconnected"));
-      display.println(WiFi.localIP());
-    }
-
-    display.display();
   }
+  else
+  {
+    display.setCursor(0, IP_LINE_POS);
+    display.print(F("Wifi Disconnected"));
+    display.println(WiFi.localIP());
+  }
+
+  display.display();
+  
 }
 
 void display_temp_and_humidity(sensors_event_t temp, sensors_event_t humidity)
 {
-    display.setCursor(0,TEMP_LINE_POS); 
-    display.print(F("Temperature: "));
-    display.println(temp.temperature);
-    display.setCursor(0,HUMIDITY_LINE_POS);             // Start at top-left corner
-    display.print(F("Humidity: "));
-    display.println(humidity.relative_humidity);
-    display.display();
+  display.setCursor(0,TEMP_LINE_POS); 
+  display.print(F("Temperature: "));
+  display.println(temp.temperature);
+  display.setCursor(0,HUMIDITY_LINE_POS);             // Start at top-left corner
+  display.print(F("Humidity: "));
+  display.println(humidity.relative_humidity);
+  display.display();
 }
 
 void display_sensor_error()
 {
-  if (screen_present)
-  {
-    display.clearDisplay();
-    display.setTextSize(1);             // Normal 1:1 pixel scale
-    display.setTextColor(SSD1306_WHITE);        // Draw white text
-    display.setCursor(0,INIT_LINE_POS);          
-    display.print(F("Sensor Fail"));
-    display.setCursor(0,RESETTING_LINE_POS);
-    display.print(F("Resetting"));
-
-  }
+  display.clearDisplay();
+  display.setTextSize(1);             // Normal 1:1 pixel scale
+  display.setTextColor(SSD1306_WHITE);        // Draw white text
+  display.setCursor(0,INIT_LINE_POS);          
+  display.print(F("Sensor Fail"));
+  display.setCursor(0,RESETTING_LINE_POS);
+  display.print(F("Resetting"));
+  display.display();
 }
 
 bool connect_to_wifi()
@@ -162,7 +157,7 @@ bool connect_to_wifi()
     Serial.print(".");
     delay(2500);
 
-    if ((millis() - start) > 20000)
+    if ((millis() - start) > 10000)
     {
       Serial.println("Could not connect to WiFi");
       return false;
@@ -208,7 +203,6 @@ void setup() {
   // SSD1306_SWITCHCAPVCC = generate display voltage from 3.3V internally
   if(!display.begin(SSD1306_SWITCHCAPVCC, SCREEN_ADDRESS)) {
     Serial.println(F("SSD1306 allocation failed, could not start screen"));
-    screen_present = false;
   }
 
   // Show system initialising
@@ -216,7 +210,7 @@ void setup() {
 
   wifi_connected = connect_to_wifi();
 
-  mqtt_connected = connect_to_mqtt();
+  if (wifi_connected) mqtt_connected = connect_to_mqtt();
 
   display_network_details(wifi_connected, mqtt_connected);
 
@@ -227,7 +221,6 @@ void setup() {
     resetFunc();
   }
   Serial.println("AHT10 or AHT20 found");
- 
 }
 
 void loop() {
@@ -262,6 +255,33 @@ void loop() {
     mqttClient.beginMessage(humidityTopic);
     mqttClient.print(humidity.relative_humidity);
     mqttClient.endMessage();
+
+    if (WiFi.isConnected())
+    {
+      Serial.println("WiFi Connected");
+      if (!mqtt_connected) mqtt_connected = connect_to_mqtt();
+      Serial.print("Connected to mqtt: ");
+      Serial.println(mqtt_connected);
+      disconnectedTimeLast = 0;
+    }
+    else
+    {
+      Serial.println("WiFi Disconnected");
+      mqtt_connected = false;
+      if (disconnectedTimeLast == 0)
+      {
+        disconnectedTimeLast = currentMillis;
+      }
+      else
+      {
+        if ((currentMillis - disconnectedTimeLast) > reconnectInterval )
+        {
+          Serial.println("Attempting to reconnect to wifi");
+          wifi_connected = connect_to_wifi();
+          disconnectedTimeLast = 0;
+        }
+      }
+    }
 
     Serial.println();
 
