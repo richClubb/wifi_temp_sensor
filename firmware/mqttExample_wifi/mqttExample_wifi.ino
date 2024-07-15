@@ -10,6 +10,8 @@
   This example code is in the public domain.
 */
 
+#define VERSION "0.3"
+
 #include <ArduinoMqttClient.h>
 #if defined(ARDUINO_SAMD_MKRWIFI1010) || defined(ARDUINO_SAMD_NANO_33_IOT) || defined(ARDUINO_AVR_UNO_WIFI_REV2)
   #include <WiFiNINA.h>
@@ -39,6 +41,7 @@
 #define IP_LINE_POS 10
 #define MQTT_LINE_POS 20
 #define INIT_LINE_POS 0
+#define NAME_LINE_POS 10
 #define ROOM_LINE_POS 30
 #define TEMP_LINE_POS 40
 #define HUMIDITY_LINE_POS 50
@@ -132,7 +135,10 @@ void display_initialising()
   display.setTextSize(1);             // Normal 1:1 pixel scale
   display.setTextColor(SSD1306_WHITE);        // Draw white text
   display.setCursor(0,INIT_LINE_POS);             // Start at top-left corner
-  display.println(F("Initialising"));
+  display.print(F("Initialising"));
+  display.setCursor(0,NAME_LINE_POS);
+  display.print("WiFi Temp Sensor V");
+  display.print(VERSION);
 }
 
 void display_network_details(bool wifi_connected, bool mqtt_connected)
@@ -242,7 +248,11 @@ bool connect_to_mqtt()
 
 void setup() {
   //Initialize serial and wait for port to open:
+
   Serial.begin(9600);
+  
+  Serial.print("Wifi Temp Sensor V");
+  Serial.println(VERSION);
   EEPROM.begin(EEPROM_SIZE);
 
   uint8_t ssid_buffer_size = EEPROM.read(EEPROM_SSID_BUFFER_SIZE_LOC);
@@ -434,7 +444,7 @@ void loop() {
       uint pos = result - serial_buffer;
       strncpy(command, serial_buffer, pos+1);
       
-      //reset serial buffer32
+      //reset serial buffer
       initialise_array(512, serial_buffer, '\0');
       serial_buffer_pos = 0;
 
