@@ -95,6 +95,7 @@ unsigned long previousDisconnectedMillis = 0;
 
 bool wifi_connected = false;
 bool mqtt_connected = false;
+bool reconnect_required = false;
 
 void(* resetFunc) (void) = 0;
 
@@ -363,7 +364,7 @@ void loop() {
     mqttClient.print(humidity.relative_humidity);
     mqttClient.endMessage();
 
-    if (WiFi.isConnected())
+    if (WiFi.isConnected() && !reconnect_required)
     {
       wifi_connected = true;
       Serial.println("WiFi Connected");
@@ -384,10 +385,18 @@ void loop() {
       {
         if ((currentMillis - disconnectedTimeLast) > reconnectInterval )
         {
-          Serial.println("Attempting to reconnect to wifi");
-          wifi_connected = connect_to_wifi();
+          reconnect_required = true;
           disconnectedTimeLast = 0;
         }
+      }
+
+      if (reconnect_required)
+      {
+        WiFi.disconnect();
+        Serial.println("Attempting to reconnect to wifi");
+        wifi_connected = connect_to_wifi();
+        reconnect_required = false;
+        disconnectedTimeLast = 0;
       }
     }
 
@@ -409,6 +418,7 @@ void loop() {
     initialise_array(64, input_buffer, 32);
     Serial.readBytes(input_buffer, serial_bytes_available);
 
+    // store incoming in serial buffer
     for (int index; index < serial_bytes_available; index++)
     {
       serial_buffer[index + serial_buffer_pos] = input_buffer[index];
@@ -420,10 +430,12 @@ void loop() {
     {
       Serial.println("Command found");
       char command[100];
-      initialise_array(64, command, 32);
+      initialise_array(64, command, '\0');
       uint pos = result - serial_buffer;
       strncpy(command, serial_buffer, pos+1);
-      initialise_array(512, serial_buffer, 32);
+      
+      //reset serial buffer32
+      initialise_array(512, serial_buffer, '\0');
       serial_buffer_pos = 0;
 
       bool command_found = false;
@@ -442,10 +454,13 @@ void loop() {
             for (int index = 0; index < ssid_length; index++)
             {
               EEPROM.write(EEPROM_SSID_LOC+index, command[colon_pos+index+1]);
+              ssid[index] = command[colon_pos+index+1];
             }
+            ssid[ssid_length] = '\0';
             EEPROM.write(EEPROM_SSID_BUFFER_SIZE_LOC, ssid_length);
             EEPROM.commit();
             Serial.println("Updated ssid eeprom entry");
+            reconnect_required = true;
           }
         }
         else
@@ -481,10 +496,13 @@ void loop() {
             for (int index = 0; index < password_length; index++)
             {
               EEPROM.write(EEPROM_PASSWORD_LOC+index, command[colon_pos+index+1]);
+              pass[index] = command[colon_pos+index+1];
             }
+            pass[password_length] = '\0';
             EEPROM.write(EEPROM_PASSWORD_BUFFER_SIZE_LOC, password_length);
             EEPROM.commit();
             Serial.println("Updated password eeprom entry");
+            reconnect_required = true;
           }
         }
         else
