@@ -31,9 +31,17 @@ uint serial_buffer_pos = 0;
 
 void eeprom_read_block(uint start, uint size, char *buffer)
 {
-  for(int index; index < size; index++)
+  for(int index = 0; index < size; index++)
   {
     *buffer = EEPROM.read(start+index);
+  }
+}
+
+void eeprom_write_block(uint start, uint size, char * buffer)
+{
+  for (int index = 0; index < size, index++)
+  {
+    EEPROM.write(*(buffer+index));
   }
 }
 
@@ -221,7 +229,9 @@ void loop() {
             for (int index = 0; index < room_length; index++)
             {
               EEPROM.write(EEPROM_ROOM_LOC+index, command[colon_pos+index+1]);
+              room[index] = command[colon_pos+index+1];
             }
+            room[room_length] = '\0';
             EEPROM.write(EEPROM_ROOM_BUFFER_SIZE_LOC, room_length);
             EEPROM.commit();
             Serial.println("Updated room eeprom entry");
