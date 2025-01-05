@@ -10,7 +10,7 @@
   This example code is in the public domain.
 */
 
-#define VERSION "0.3"
+#define VERSION "0.4"
 
 #include <ArduinoMqttClient.h>
 #if defined(ARDUINO_SAMD_MKRWIFI1010) || defined(ARDUINO_SAMD_NANO_33_IOT) || defined(ARDUINO_AVR_UNO_WIFI_REV2)
@@ -64,6 +64,13 @@
 #define EEPROM_ROOM_BUFFER_SIZE_LOC 304
 #define EEPROM_ROOM_BUFFER_SIZE_SIZE 1
 
+#define EEPROM_BROKER_LOC 306
+#define EEPROM_BROKER_SIZE 100
+#define EEPROM_BROKER_BUFFER_SIZE_LOC 406
+#define EEPROM_BROKER_BUFFER_SIZE_SIZE 1
+
+#define RECONNECT_INTERVAL_MAX ((long int)60000)
+
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 Adafruit_AHTX0 aht;
 
@@ -84,7 +91,7 @@ MqttClient mqttClient(wifiClient);
 #define DEFAULT_ROOM_NAME "aroom"
 
 char room[50] = DEFAULT_ROOM_NAME;
-const char broker[50] = "test.mosquitto.org";
+char broker[50] = "192.168.1.91";
 int        port     = 1883;
 char tempTopic[50]  = "";
 char humidityTopic[50]  = "";
@@ -92,7 +99,8 @@ char humidityTopic[50]  = "";
 const long interval = 3000;
 unsigned long previousMillis = 0;
 
-const long reconnectInterval = 10000;
+long reconnectInterval = 10000;
+
 unsigned long disconnectedTimeLast = 0;
 unsigned long previousDisconnectedMillis = 0;
 
@@ -105,6 +113,7 @@ void(* resetFunc) (void) = 0;
 char eeprom_ssid[EEPROM_SSID_SIZE];
 char eeprom_password[EEPROM_PASSWORD_SIZE];
 char eeprom_room[EEPROM_ROOM_SIZE];
+char eeprom_broker[EEPROM_BROKER_SIZE];
 
 char serial_buffer[512];
 uint serial_buffer_pos = 0;
@@ -249,7 +258,7 @@ bool connect_to_mqtt()
 void setup() {
   //Initialize serial and wait for port to open:
 
-  Serial.begin(9600);
+  Serial.begin(115200);
   
   Serial.print("Wifi Temp Sensor V");
   Serial.println(VERSION);
@@ -258,6 +267,7 @@ void setup() {
   uint8_t ssid_buffer_size = EEPROM.read(EEPROM_SSID_BUFFER_SIZE_LOC);
   uint8_t password_buffer_size = EEPROM.read(EEPROM_PASSWORD_BUFFER_SIZE_LOC);
   uint8_t room_buffer_size = EEPROM.read(EEPROM_ROOM_BUFFER_SIZE_LOC);
+  uint8_t broker_buffer_size = EEPROM.read(EEPROM_BROKER_BUFFER_SIZE_LOC);
 
   Serial.println("EEPROM Test");
   Serial.print("ssid buffer size: ");
@@ -265,6 +275,8 @@ void setup() {
   Serial.print("password buffer size: ");
   Serial.println(password_buffer_size);
   Serial.print("room buffer size: ");
+  Serial.println(room_buffer_size);
+  Serial.print("broker buffer size: ");
   Serial.println(room_buffer_size);
 
   if (ssid_buffer_size != 0)
@@ -309,6 +321,17 @@ void setup() {
     strcat(tempTopic, "/temperature");
     strcat(humidityTopic, DEFAULT_ROOM_NAME);
     strcat(humidityTopic, "/humidity");
+  }
+
+  if (broker_buffer_size != 0)
+  {
+    for (int index = 0; index < broker_buffer_size; index++)
+    {
+      broker[index] = EEPROM.read(EEPROM_BROKER_LOC+index);
+    }
+    broker[broker_buffer_size] = '\0';
+    Serial.print("Broker address: ");
+    Serial.println(broker);
   }
 
   Wire.begin(2, 0);
@@ -379,8 +402,16 @@ void loop() {
       wifi_connected = true;
       Serial.println("WiFi Connected");
       if (!mqtt_connected) mqtt_connected = connect_to_mqtt();
-      Serial.print("Connected to mqtt: ");
-      Serial.println(mqtt_connected);
+      
+      if(mqtt_connected)
+      {
+        Serial.print("Connected to broker: ");
+        Serial.println(broker);
+      }
+      else
+      {
+        Serial.println("Broker not connected");
+      }
       disconnectedTimeLast = 0;
     }
     else
@@ -396,6 +427,7 @@ void loop() {
         if ((currentMillis - disconnectedTimeLast) > reconnectInterval )
         {
           reconnect_required = true;
+          reconnectInterval = max(reconnectInterval * 2, RECONNECT_INTERVAL_MAX);
           disconnectedTimeLast = 0;
         }
       }
@@ -560,6 +592,7 @@ void loop() {
             EEPROM.write(EEPROM_ROOM_BUFFER_SIZE_LOC, room_length);
             EEPROM.commit();
             Serial.println("Updated room eeprom entry");
+            reconnect_required = true;
           }
         }
         else
@@ -576,6 +609,48 @@ void loop() {
             room[room_size] = '\0';
             Serial.print("Room: ");
             Serial.println(room);
+          }
+        }
+        command_found = true;
+      }
+
+      command_result = strstr(command, "broker");
+      if ((!command_found) && command_result != NULL)
+      {
+        char* colon = strchr(command, ':');
+        if (colon != NULL)
+        {
+          int colon_pos = colon - command;
+          if (colon_pos == 7)
+          {
+            Serial.println("Found broker write command");
+            int broker_length = pos - colon_pos - 1;;
+            for (int index = 0; index < broker_length; index++)
+            {
+              EEPROM.write(EEPROM_BROKER_LOC+index, command[colon_pos+index+1]);
+              broker[index] = command[colon_pos+index+1];
+            }
+            broker[broker_length] = '\0';
+            EEPROM.write(EEPROM_BROKER_BUFFER_SIZE_LOC, broker_length);
+            EEPROM.commit();
+            Serial.println("Updated broker eeprom entry");
+            reconnect_required = true;
+          }
+        }
+        else
+        {
+          if (pos == 7)
+          {
+            Serial.println("Found broker read command");
+            char broker[EEPROM_BROKER_SIZE];
+            int broker_size = EEPROM.read(EEPROM_BROKER_BUFFER_SIZE_LOC);
+            for (int index = 0; index < broker_size; index++)
+            {
+              broker[index] = EEPROM.read(EEPROM_BROKER_LOC + index);
+            }
+            broker[broker_size] = '\0';
+            Serial.print("Broker: ");
+            Serial.println(broker);
           }
         }
         command_found = true;
