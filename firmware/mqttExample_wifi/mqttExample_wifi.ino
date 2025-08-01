@@ -24,7 +24,8 @@
 #endif
 
 #include <Wire.h>
-#include <Adafruit_AHTX0.h>
+//#include <Adafruit_AHTX0.h>
+#include <AHT20.h>
 
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
@@ -72,7 +73,7 @@
 #define RECONNECT_INTERVAL_MAX ((long int)60000)
 
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
-Adafruit_AHTX0 aht;
+AHT20 aht;
 
 #include "arduino_secrets.h"
 ///////please enter your sensitive data in the Secret tab/arduino_secrets.h
@@ -96,10 +97,12 @@ int        port     = 1883;
 char tempTopic[50]  = "";
 char humidityTopic[50]  = "";
 
-const long interval = 3000;
-unsigned long previousMillis = 0;
+const long reportInterval = 10000;
+long reconnectInterval = 30000;
+const long mqttPollInterval = 5000;
 
-long reconnectInterval = 10000;
+unsigned long previousReportMillis = 0;
+unsigned long previousMqttPollMillis = 0;
 
 unsigned long disconnectedTimeLast = 0;
 unsigned long previousDisconnectedMillis = 0;
@@ -168,6 +171,11 @@ void display_network_details(bool wifi_connected, bool mqtt_connected)
       display.setCursor(0, MQTT_LINE_POS);        
       display.println("Broker: Connected");
     }
+    else
+    {
+      display.setCursor(0, MQTT_LINE_POS);        
+      display.println("Broker: N/A");
+    }
   }
   else
   {
@@ -187,15 +195,23 @@ void display_room_info()
   display.println(room);
 }
 
-void display_temp_and_humidity(sensors_event_t temp, sensors_event_t humidity)
+// void display_temp_and_humidity(sensors_event_t temp, sensors_event_t humidity)
+// {
+//   display.setCursor(0,TEMP_LINE_POS); 
+//   display.print(F("Temperature: "));
+//   display.println(temp.temperature);
+//   display.setCursor(0,HUMIDITY_LINE_POS);             // Start at top-left corner
+//   display.print(F("Humidity: "));
+//   display.println(humidity.relative_humidity);
+// }
+void display_temp_and_humidity(float temp, float humidity)
 {
   display.setCursor(0,TEMP_LINE_POS); 
   display.print(F("Temperature: "));
-  display.println(temp.temperature);
+  display.println(temp);
   display.setCursor(0,HUMIDITY_LINE_POS);             // Start at top-left corner
   display.print(F("Humidity: "));
-  display.println(humidity.relative_humidity);
-  
+  display.println(humidity);
 }
 
 void display_sensor_error()
@@ -260,7 +276,7 @@ void setup() {
 
   Serial.begin(115200);
   
-  Serial.print("Wifi Temp Sensor V");
+  Serial.print("Wifi Temp Sensor");
   Serial.println(VERSION);
   EEPROM.begin(EEPROM_SIZE);
 
@@ -353,48 +369,60 @@ void setup() {
   display_network_details(wifi_connected, mqtt_connected);
   display.display();
 
-  if (! aht.begin()) {
-    Serial.println("Could not find AHT? Check wiring");
-    display.clearDisplay();
-    display_sensor_error();
-    display.display();
-    delay(2000);
-    resetFunc();
-  }
+  // if (! aht.begin()) {
+  //   Serial.println("Could not find AHT? Check wiring");
+  //   display.clearDisplay();
+  //   display_sensor_error();
+  //   display.display();
+  //   delay(2000);
+  //   resetFunc();
+  // }
+
+  aht.begin();
   Serial.println("AHT10 or AHT20 found");
 }
 
 void loop() {
+   
+  unsigned long currentMillis = millis();
+
   // call poll() regularly to allow the library to send MQTT keep alives which
   // avoids being disconnected by the broker
-  mqttClient.poll();
+  // set up a poll interval
+  if ((currentMillis - previousMqttPollMillis) >= mqttPollInterval)
+  {
+    previousMqttPollMillis = currentMillis;
+    mqttClient.poll();
+  }
 
-  // to avoid having delays in loop, we'll use the strategy from BlinkWithoutDelay
-  // see: File -> Examples -> 02.Digital -> BlinkWithoutDelay for more info
-  unsigned long currentMillis = millis();
-  
-  if (currentMillis - previousMillis >= interval) {
+  if (currentMillis - previousReportMillis >= reportInterval) {
     // save the last time a message was sent
-    previousMillis = currentMillis;
-    sensors_event_t humidity, temp;
-    aht.getEvent(&humidity, &temp);// populate temp and humidity objects with fresh data
+    previousReportMillis = currentMillis;
+    //sensors_event_t humidity, temp;
+    //aht.getEvent(&humidity, &temp);// populate temp and humidity objects with fresh data
+    float humidity, temp;
+    aht.getSensor(&humidity, &temp);
 
     Serial.print("Sending message to topic: ");
     Serial.print(tempTopic);
     Serial.print(": ");
-    Serial.println(temp.temperature);
+    //Serial.println(temp.temperature);
+    Serial.println(temp);
     Serial.print("Sending message to topic: ");
     Serial.print(humidityTopic);
     Serial.print(": ");
-    Serial.println(humidity.relative_humidity);
+    //Serial.println(humidity.relative_humidity);
+    Serial.println(humidity);
 
     // send message, the Print interface can be used to set the message contents
     mqttClient.beginMessage(tempTopic);
-    mqttClient.print(temp.temperature);
+    //mqttClient.print(temp.temperature);
+    mqttClient.print(temp);
     mqttClient.endMessage();
     
     mqttClient.beginMessage(humidityTopic);
-    mqttClient.print(humidity.relative_humidity);
+    //mqttClient.print(humidity.relative_humidity);
+    mqttClient.print(humidity);
     mqttClient.endMessage();
 
     if (WiFi.isConnected() && !reconnect_required)
