@@ -1,0 +1,2 @@
+#define SECRET_SSID "BT-27F677"
+#define SECRET_PASS "hyrGMT3HMYErLy"

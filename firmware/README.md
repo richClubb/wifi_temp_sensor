@@ -13,7 +13,7 @@ WiFi Temp Sensor Firmware
 
 # Additional Hardware
 
-* USB Serial Adapter - Can use any but be careful of the logic level and pinout. Works with the Adafruit Serial Friend and the Sparkfun FTDI breakout.
+* USB Serial Adapter - Can use any but be careful of the logic level (3.3V) and pinout. Works with the Adafruit Serial Friend and the Sparkfun FTDI breakout.
 
 
 

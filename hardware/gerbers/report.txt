@@ -1,0 +1,11 @@
+Plotted to '/home/richard/projects/wifi_temp_sensor/hardware/gerbers/wifi_temp_sensor-F_Cu.gbr'.
+Plotted to '/home/richard/projects/wifi_temp_sensor/hardware/gerbers/wifi_temp_sensor-B_Cu.gbr'.
+Plotted to '/home/richard/projects/wifi_temp_sensor/hardware/gerbers/wifi_temp_sensor-F_Paste.gbr'.
+Plotted to '/home/richard/projects/wifi_temp_sensor/hardware/gerbers/wifi_temp_sensor-B_Paste.gbr'.
+Plotted to '/home/richard/projects/wifi_temp_sensor/hardware/gerbers/wifi_temp_sensor-F_Silkscreen.gbr'.
+Plotted to '/home/richard/projects/wifi_temp_sensor/hardware/gerbers/wifi_temp_sensor-B_Silkscreen.gbr'.
+Plotted to '/home/richard/projects/wifi_temp_sensor/hardware/gerbers/wifi_temp_sensor-F_Mask.gbr'.
+Plotted to '/home/richard/projects/wifi_temp_sensor/hardware/gerbers/wifi_temp_sensor-B_Mask.gbr'.
+Plotted to '/home/richard/projects/wifi_temp_sensor/hardware/gerbers/wifi_temp_sensor-Edge_Cuts.gbr'.
+Created Gerber job file '/home/richard/projects/wifi_temp_sensor/hardware/gerbers/wifi_temp_sensor-job.gbrjob'.
+Info: Done.

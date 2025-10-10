@@ -1,9 +1,0 @@
-Info: Processing symbol 'IC1:ESP32C3WROOM02N4'.
-Info: Processing symbol 'J1:Connector_USB:USB_C_Receptacle_Molex_105450-0101'.
-Info: Processing symbol 'J2:Connector_JST:JST_ACH_BM02B-ACHSS-GAN-ETF_1x02-1MP_P1.20mm_Vertical'.
-Add J1 (footprint 'Connector_USB:USB_C_Receptacle_Molex_105450-0101').
-Add J2 (footprint 'Connector_JST:JST_ACH_BM02B-ACHSS-GAN-ETF_1x02-1MP_P1.20mm_Vertical').
-Error: Cannot add IC1 (footprint 'ESP32C3WROOM02N4' not found).
-
-
-Info: Total warnings: 0, errors: 1.
